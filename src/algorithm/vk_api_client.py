@@ -4,7 +4,7 @@ from algorithm.group_info import GroupInfo
 
 class VkApiClient:
     token = ""
-    
+
     def get_user_groups(self, user_id) -> list:
         response = requests.get('https://api.vk.com/method/users.getSubscriptions', params={
             'access_token': self.token,
