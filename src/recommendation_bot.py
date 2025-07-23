@@ -1,6 +1,7 @@
 import telebot
 
 from algorithm.recommendation_algorithm import RecommendationAlgorithm
+from clope_recommendations import get_user_interests_from_cluster, load_clope_model
 
 bot = telebot.TeleBot('')
 
@@ -8,28 +9,38 @@ bot = telebot.TeleBot('')
 def start(message):
     try:
         if message.text == '/start':
-            bot.send_message(message.from_user.id, "Привет! Я бот, который умеет анализировать интересы пользователя и рекомендовать группы в социальной сети VK. Напиши мне свой id")
+            bot.send_message(message.from_user.id, "Привет! Я бот, который анализирует интересы пользователя VK. Напиши мне свой id в VK")
         elif message.text.isdigit():
-            bot.send_message(message.from_user.id, "Подожди секунду\nИщу подходящие группы")
+            bot.send_message(message.from_user.id, "Анализирую интересы...")
+            
+            # Получаем интересы пользователя
             algorithm = RecommendationAlgorithm()
-            links = algorithm.get_recommendations(int(message.text))
-            if links == None:
+            interests2count = algorithm.get_interests(int(message.text))
+            interests = [pair[0] for pair in interests2count]
+            
+            if not interests:
                 bot.send_message(message.from_user.id, "К сожалению я не смог найти твоего пользователя :(\nПроверь, правильно ли введен твой id и попробуй еще раз")
                 return
             
-            result_str = 'Рекомендованные группы:\n'
-            for link in links:
-                result_str += link + '\n'
-            bot.send_message(message.from_user.id, result_str)
-            print("Для пользователя подобраны группы, user_id = " + str(message.from_user.id))
+            clope = load_clope_model()
+            
+            cluster_interests = get_user_interests_from_cluster(clope, interests)
+            
+            # Формируем ответ
+            response = f"Ваши топ-5 интересов:\n- " + "\n- ".join(interests) + "\n\n"
+            response += f"Топ-10 интересов вашего кластера:\n- "
+            response += "\n- ".join(cluster_interests)
+            
+            bot.send_message(message.from_user.id, response)
+            
         else:
-            bot.send_message(message.from_user.id, "Ты ввел некорректный формат id. Проверь, все ли введено правильно и попробуй еще раз :)\nПример id пользователя: 123123")
-    except:
-        bot.send_message(message.from_user.id, "Ой, произошла какая-то ошибка...\nПопробуй, пожалуйста, еще раз")
-        print("Ошибка при подборе рекоммендаций user_id = " + str(message.from_user.id))
+            bot.send_message(message.from_user.id, "Некорректный формат id. Введите числовой id пользователя VK.")
+    except Exception as e:
+        print(f"Ошибка: {e}")
+        bot.send_message(message.from_user.id, "Произошла ошибка. Попробуйте позже.")
 
 @bot.message_handler(content_types=["audio", "document", "photo", "sticker", "video", "video_note", "voice"])
 def incorrect_format(message):
-    bot.send_message(message.from_user.id, "К сожалению, я не поддерживаю такой формат сообщений :(\nПопробуй ввести id пользователя из VK, а я тебе порекомендую интересные ему группы")
+    bot.send_message(message.from_user.id, "Пожалуйста, введите числовой id пользователя VK.")
 
 bot.polling(none_stop=True, interval=0)

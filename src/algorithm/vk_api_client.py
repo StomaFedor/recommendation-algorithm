@@ -1,25 +1,32 @@
 import requests
 
-from algorithm.group_info import GroupInfo
+from algorithm.models.group_info import GroupInfo
 
 class VkApiClient:
-    token = ""
+    tokens = ["",
+              ""]
+    token_index = 0
+    max_token_count = len(tokens)
 
+    
     def get_user_groups(self, user_id) -> list:
         response = requests.get('https://api.vk.com/method/users.getSubscriptions', params={
-            'access_token': self.token,
+            'access_token': self.tokens[self.token_index],
             'user_id': user_id,
             'v': 5.199,
         })
-        if response.status_code != 200:
-            print("Ошибка при запросе получения групп пользователя, user_id = " + str(user_id))
+        data = response.json()
+
+        if response.status_code != 200 or 'error' in data:
+            if data['error']['error_code'] == 29 or data['error']['error_code'] == 5:
+                self.token_index += 1
+                
+            print("Ошибка при запросе получения групп пользователя, user_id = " + str(user_id) 
+                  + "; token_index = " + str(self.token_index)
+                   + "; response = " + data['error']['error_msg'])
             return
         
         groups = []
-        data = response.json()
-        if 'error' in data:
-            print("Ошибка при запросе получения групп пользователя, пользователь не найден, user_id = " + str(user_id))
-            return
         
         group_items = data['response']['groups']['items']
         groups.extend(group_items)
@@ -28,18 +35,19 @@ class VkApiClient:
     
     def get_group_info(self, group_id) -> GroupInfo:
         response = requests.get('https://api.vk.com/method/groups.getById', params={
-            'access_token': self.token,
+            'access_token': self.tokens[self.token_index],
             'group_id': group_id,
             'v': 5.199,
             'fields': "description",
         })
-        if response.status_code != 200:
-            print("Ошибка при запросе получения информации о группе, group_id = " + str(group_id))
-            return
-        
         data = response.json()
-        if 'error' in data:
-            print("Ошибка при запросе получения информации о группе, группа не найдена, group_id = " + str(group_id))
+
+        if response.status_code != 200 or 'error' in data:
+            if data['error']['error_code'] == 29 or data['error']['error_code'] == 5:
+                self.token_index += 1
+            print("Ошибка при запросе получения информации о группе, group_id = " + str(group_id)
+                  + "; token_index = " + str(self.token_index)
+                  + "; response = " + data['error']['error_msg'])
             return
 
         group_info_dict = data['response']['groups'][0]

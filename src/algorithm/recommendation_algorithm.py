@@ -7,7 +7,7 @@ class RecommendationAlgorithm:
         self.vk_api = VkApiClient()
         self.lemm = Lemmatizer()
 
-    def get_recommendations(self, user_id: int) -> list:
+    def get_interests(self, user_id: int) -> list:
         group_ids = self.vk_api.get_user_groups(user_id)
         if group_ids == None:
             return
@@ -29,6 +29,10 @@ class RecommendationAlgorithm:
         sorted_tokens = sorted(token_dict.items(), key=operator.itemgetter(1), reverse=True)
 
         top_tokens = sorted_tokens[:5]
+        return top_tokens
+
+    def get_recommendations(self, user_id: int) -> list:
+        top_tokens = self.get_interests(user_id)
 
         result_ids = []
         for token in top_tokens:
